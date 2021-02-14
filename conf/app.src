@@ -1,0 +1,7 @@
+SOURCE_URL=https://github.com/freepius/yunohost-admin/raw/users-groups/archives/ynh-users-groups_2021-02-14.tar.gz
+SOURCE_SUM=6f4cb180efe96b513c28ff923668a3465baeec059d057ad1b87b76e00f50c020
+SOURCE_SUM_PRG=sha256sum
+SOURCE_FORMAT=tar.gz
+SOURCE_IN_SUBDIR=true
+SOURCE_FILENAME=
+SOURCE_EXTRACT=true

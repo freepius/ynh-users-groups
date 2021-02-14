@@ -1,0 +1,407 @@
+##########################################################################
+#
+# Special actionsmap file for ynh-users-groups app.
+# It exposes only the 'user' category to manage users, groups and permissions.
+#
+# No authentication is needed because the ynh-users-groups API is not publicly exposed
+# (but only to users having permission for the app and already connected via the SSO).
+#
+# Please synchronize the following 'user' category with the original one:
+# => https://github.com/YunoHost/yunohost/blob/dev/data/actionsmap/yunohost.yml
+#
+##########################################################################
+
+#############################
+#     Global parameters     #
+#############################
+_global:
+    configuration:
+        # FIXME: Must we used a ldap authentication matching with the allowed group?
+        # eg: ou=ynh-users-groups,dc=yunohost,dc=org
+        authenticate: false
+        authenticator:
+            # ldap anonymous
+            default:
+                vendor: ldap
+                parameters:
+                    uri: ldap://localhost:389
+                    base_dn: dc=yunohost,dc=org
+        argument_auth: true
+    arguments:
+        -v:
+            full: --version
+            help: Display YunoHost packages versions
+            action: callback
+            callback:
+                method: yunohost.utils.packages.ynh_packages_version
+                return: true
+
+#############################
+#           User            #
+#############################
+user:
+    category_help: Manage users and groups
+    actions:
+
+        ### user_list()
+        list:
+            action_help: List users
+            api: GET /users
+            arguments:
+               --fields:
+                    help: fields to fetch
+                    nargs: "+"
+
+        ### user_create()
+        create:
+            action_help: Create user
+            api: POST /users
+            arguments:
+                username:
+                    help: The unique username to create
+                    extra:
+                        pattern: &pattern_username
+                            - !!str ^[a-z0-9_]+$
+                            - "pattern_username"
+                -f:
+                    full: --firstname
+                    extra:
+                        ask: ask_firstname
+                        required: True
+                        pattern: &pattern_firstname
+                            - !!str ^([^\W\d_]{1,30}[ ,.'-]{0,3})+$
+                            - "pattern_firstname"
+                -l:
+                    full: --lastname
+                    extra:
+                        ask: ask_lastname
+                        required: True
+                        pattern: &pattern_lastname
+                            - !!str ^([^\W\d_]{1,30}[ ,.'-]{0,3})+$
+                            - "pattern_lastname"
+                -m:
+                    full: --mail
+                    help: (Deprecated, see --domain) Main unique email address
+                -p:
+                    full: --password
+                    help: User password
+                    extra:
+                        password: ask_password
+                        required: True
+                        pattern: &pattern_password
+                            - !!str ^.{3,}$
+                            - "pattern_password"
+                        comment: good_practices_about_user_password
+                -d:
+                    full: --domain
+                    help: Domain for the email address and xmpp account
+                    extra:
+                        pattern: &pattern_domain
+                            - !!str ^([^\W_A-Z]+([-]*[^\W_A-Z]+)*\.)+((xn--)?[^\W_]{2,})$
+                            - "pattern_domain"
+                -q:
+                    full: --mailbox-quota
+                    help: Mailbox size quota
+                    default: "0"
+                    metavar: "{SIZE|0}"
+                    extra:
+                        pattern: &pattern_mailbox_quota
+                            - !!str ^(\d+[bkMGT])|0$
+                            - "pattern_mailbox_quota"
+
+        ### user_delete()
+        delete:
+            action_help: Delete user
+            api: DELETE /users/<username>
+            arguments:
+                username:
+                    help: Username to delete
+                    extra:
+                        pattern: *pattern_username
+                --purge:
+                    help: Purge user's home and mail directories
+                    action: store_true
+
+        ### user_update()
+        update:
+            action_help: Update user informations
+            api: PUT /users/<username>
+            arguments:
+                username:
+                    help: Username to update
+                -f:
+                    full: --firstname
+                    extra:
+                        pattern: *pattern_firstname
+                -l:
+                    full: --lastname
+                    extra:
+                        pattern: *pattern_lastname
+                -m:
+                    full: --mail
+                    extra:
+                        pattern: &pattern_email
+                            - !!str ^[\w.-]+@([^\W_A-Z]+([-]*[^\W_A-Z]+)*\.)+((xn--)?[^\W_]{2,})$
+                            - "pattern_email"
+                -p:
+                    full: --change-password
+                    help: New password to set
+                    metavar: PASSWORD
+                    nargs: "?"
+                    const: 0
+                    extra:
+                        pattern: *pattern_password
+                        comment: good_practices_about_user_password
+                --add-mailforward:
+                    help: Mailforward addresses to add
+                    nargs: "*"
+                    metavar: MAIL
+                    extra:
+                        pattern: &pattern_email_forward
+                            - !!str ^[\w\+.-]+@([^\W_A-Z]+([-]*[^\W_A-Z]+)*\.)+((xn--)?[^\W_]{2,})$
+                            - "pattern_email_forward"
+                --remove-mailforward:
+                    help: Mailforward addresses to remove
+                    nargs: "*"
+                    metavar: MAIL
+                --add-mailalias:
+                    help: Mail aliases to add
+                    nargs: "*"
+                    metavar: MAIL
+                    extra:
+                        pattern: *pattern_email
+                --remove-mailalias:
+                    help: Mail aliases to remove
+                    nargs: "*"
+                    metavar: MAIL
+                -q:
+                    full: --mailbox-quota
+                    help: Mailbox size quota
+                    metavar: "{SIZE|0}"
+                    extra:
+                        pattern: *pattern_mailbox_quota
+
+        ### user_info()
+        info:
+            action_help: Get user information
+            api: GET /users/<username>
+            arguments:
+                username:
+                    help: Username or email to get information
+
+    subcategories:
+        group:
+            subcategory_help: Manage user groups
+            actions:
+                ### user_group_list()
+                list:
+                    action_help: List existing groups
+                    api: GET /users/groups
+                    arguments:
+                        -s:
+                            full: --short
+                            help: List only the names of groups
+                            action: store_true
+                        -f:
+                            full: --full
+                            help: Display all informations known about each groups
+                            action: store_true
+                        -p:
+                            full: --include-primary-groups
+                            help: Also display primary groups (each user has an eponym group that only contains itself)
+                            action: store_true
+                            default: false
+
+                ### user_group_create()
+                create:
+                    action_help: Create group
+                    api: POST /users/groups
+                    arguments:
+                        groupname:
+                            help: Name of the group to be created
+                            extra:
+                                pattern: &pattern_groupname
+                                    - !!str ^[a-z0-9_]+$
+                                    - "pattern_groupname"
+
+                ### user_group_delete()
+                delete:
+                    action_help: Delete group
+                    api: DELETE /users/groups/<groupname>
+                    arguments:
+                        groupname:
+                            help: Name of the group to be deleted
+                            extra:
+                                pattern: *pattern_groupname
+
+                ### user_group_update()
+                update:
+                    action_help: Update group
+                    api: PUT /users/groups/<groupname>
+                    arguments:
+                        groupname:
+                            help: Name of the group to be updated
+                            extra:
+                                pattern: *pattern_groupname
+                        -a:
+                            full: --add
+                            help: User(s) to add in the group
+                            nargs: "*"
+                            metavar: USERNAME
+                            extra:
+                                pattern: *pattern_username
+                        -r:
+                            full: --remove
+                            help: User(s) to remove in the group
+                            nargs: "*"
+                            metavar: USERNAME
+                            extra:
+                                pattern: *pattern_username
+
+                ### user_group_info()
+                info:
+                    action_help: Get information about a specific group
+                    api: GET /users/groups/<groupname>
+                    arguments:
+                        groupname:
+                            help: Name of the group to fetch info about
+                            extra:
+                                pattern: *pattern_username
+
+        permission:
+            subcategory_help: Manage permissions
+            actions:
+
+                ### user_permission_list()
+                list:
+                    action_help: List permissions and corresponding accesses
+                    api: GET /users/permissions
+                    arguments:
+                        -s:
+                            full: --short
+                            help: Only list permission names
+                            action: store_true
+                        -f:
+                            full: --full
+                            help: Display all info known about each permission, including the full user list of each group it is granted to.
+                            action: store_true
+
+                ### user_permission_info()
+                info:
+                    action_help: Get information about a specific permission
+                    api: GET /users/permissions/<permission>
+                    arguments:
+                        permission:
+                            help: Name of the permission to fetch info about (use "yunohost user permission list" and "yunohost user permission -f" to see all the current permissions)
+
+                ### user_permission_update()
+                update:
+                    action_help: Manage group or user permissions
+                    api: PUT /users/permissions/<permission>
+                    arguments:
+                        permission:
+                            help: Permission to manage (e.g. mail or nextcloud or wordpress.editors) (use "yunohost user permission list" and "yunohost user permission -f" to see all the current permissions)
+                        -a:
+                            full: --add
+                            help: Group or usernames to grant this permission to
+                            nargs: "*"
+                            metavar: GROUP_OR_USER
+                            extra:
+                                pattern: *pattern_username
+                        -r:
+                            full: --remove
+                            help: Group or usernames revoke this permission from
+                            nargs: "*"
+                            metavar: GROUP_OR_USER
+                            extra:
+                                pattern: *pattern_username
+                        -l:
+                            full: --label
+                            help: Label for this permission. This label will be shown on the SSO and in the admin
+                        -s:
+                            full: --show_tile
+                            help: Define if a tile will be shown in the SSO
+                            choices:
+                                - 'True'
+                                - 'False'
+
+                ## user_permission_reset()
+                reset:
+                    action_help: Reset allowed groups to the default (all_users) for a given permission
+                    api: DELETE /users/permissions/<app>
+                    arguments:
+                        permission:
+                            help: Permission to manage (e.g. mail or nextcloud or wordpress.editors) (use "yunohost user permission list" and "yunohost user permission -f" to see all the current permissions)
+
+#############################
+#          Domain           #
+#############################
+domain:
+    category_help: Manage domains
+    actions:
+
+        ### domain_list()
+        list:
+            action_help: List domains
+            api: GET /domains
+            arguments:
+                --exclude-subdomains:
+                    help: Filter out domains that are obviously subdomains of other declared domains
+                    action: store_true
+
+        ### domain_maindomain()
+        main-domain:
+            action_help: Check the current main domain
+            deprecated_alias:
+                - maindomain
+            api:
+                - GET /domains/main
+
+#############################
+#           Tools           #
+#############################
+tools:
+    category_help: Specific tools
+    actions:
+
+        ### tools_maindomain()
+        maindomain:
+            action_help: Check the current main domain
+
+        ### tools_versions()
+        versions:
+            action_help: Display YunoHost's packages versions
+            api: GET /versions
+
+#############################
+#            Log            #
+#############################
+log:
+    category_help: Manage debug logs
+    actions:
+
+        ### log_show()
+        show:
+            action_help: Display a log content
+            api: GET /logs/<path>
+            deprecated_alias:
+                - display
+            arguments:
+                path:
+                    help: Log file which to display the content
+                -n:
+                    full: --number
+                    help: Number of lines to display
+                    default: 50
+                    type: int
+                --share:
+                    help: (Deprecated, see yunohost log share) Share the full log using yunopaste
+                    action: store_true
+                -i:
+                    full: --filter-irrelevant
+                    help: Do not show some lines deemed not relevant (like set +x or helper argument parsing)
+                    action: store_true
+                -s:
+                    full: --with-suboperations
+                    help: Include metadata about sub-operations of this operation... (e.g. initializing groups/permissions when installing an app)
+                    action: store_true

@@ -1,0 +1,15 @@
+[Unit]
+Description=Yunohost Users-Groups API Server
+After=network.target
+
+[Service]
+Type=simple
+Environment="DAEMON_OPTS=--port __PORT__"
+Environment="MOULINETTE_DATA_DIR=/etc/__APP__/"
+ExecStart=/usr/bin/yunohost-api $DAEMON_OPTS
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
