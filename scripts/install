@@ -104,7 +104,9 @@ ynh_add_config --template="yunohost.yml" --destination="/etc/$app/actionsmap/yun
 # SETUP SYSTEMD
 #=================================================
 ynh_script_progression  --message="Configuring a systemd service..." --weight=1
-ynh_add_systemd_config  --service=$app-api --others_var='app port'
+ynh_add_systemd_config  --service=$app-api
+ynh_replace_string --match_string="__APP__"  --replace_string="$app"  --target_file="/etc/systemd/system/$app-api.service"
+ynh_replace_string --match_string="__PORT__" --replace_string="$port" --target_file="/etc/systemd/system/$app-api.service"
 
 #=================================================
 # GENERIC FINALIZATION
